@@ -5,7 +5,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter
 
-from posts.models import Post, Group, Follow
+from posts.models import Post, Group
 from .permissions import IsAuthor, ReadOnly
 from . import serializers
 
