@@ -1,28 +1,23 @@
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
-from rest_framework import mixins
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter
 
 from posts.models import Post, Group
-from .permissions import IsAuthor, ReadOnly
+from .mixins import ListCreateViewSet
+from .permissions import IsAuthorOrReadOnly
 from . import serializers
 
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = serializers.PostSerializer
-    permission_classes = (IsAuthor,)
+    permission_classes = (IsAuthorOrReadOnly,)
     pagination_class = LimitOffsetPagination
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
-
-    def get_permissions(self):
-        if self.action == 'retrieve':
-            return (ReadOnly(),)
-        return super().get_permissions()
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -32,27 +27,17 @@ class GroupViewSet(viewsets.ReadOnlyModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.CommentSerializer
-    permission_classes = (IsAuthor,)
+    permission_classes = (IsAuthorOrReadOnly,)
 
     def get_queryset(self):
         return get_object_or_404(
-            Post, pk=self.kwargs.get('post_id')).comments
+            Post, pk=self.kwargs.get('post_id')).comments.all()
 
     def perform_create(self, serializer):
         serializer.save(
             author=self.request.user,
             post=get_object_or_404(Post, pk=self.kwargs.get('post_id'))
         )
-
-    def get_permissions(self):
-        if self.action == 'retrieve':
-            return (ReadOnly(),)
-        return super().get_permissions()
-
-
-class ListCreateViewSet(mixins.CreateModelMixin, mixins.ListModelMixin,
-                        viewsets.GenericViewSet):
-    pass
 
 
 class FollowViewSet(ListCreateViewSet):
@@ -62,7 +47,7 @@ class FollowViewSet(ListCreateViewSet):
     search_fields = ('following__username',)
 
     def get_queryset(self):
-        return self.request.user.follower
+        return self.request.user.follower.all()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
